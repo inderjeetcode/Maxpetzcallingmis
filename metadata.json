@@ -1,0 +1,6 @@
+{
+  "name": "Max PetZ — Call Analytics Dashboard",
+  "description": "Live call analytics, missed call recovery tracking, daily growth metrics, and department performance dashboard for Max PetZ Hospitals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
