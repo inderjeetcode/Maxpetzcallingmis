@@ -68,24 +68,26 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Connection Status */}
           <div
             className={`flex items-center gap-1.5 border-2 border-black px-2.5 py-1 text-xs font-bold ${
-              settings.connectionStatus === 'connected'
+              settings.connectionStatus === 'Connected'
                 ? 'bg-[#00D26A] text-black'
-                : settings.connectionStatus === 'verified_cache'
+                : settings.connectionStatus === 'Connecting'
+                ? 'bg-[#0070F3] text-white'
+                : settings.connectionStatus === 'Offline / Cached Data'
                 ? 'bg-[#FFE600] text-black'
+                : settings.connectionStatus === 'Configuration Required'
+                ? 'bg-amber-100 text-black'
                 : 'bg-[#FF334B] text-white'
             }`}
           >
-            {settings.connectionStatus === 'connected' ? (
+            {settings.connectionStatus === 'Connected' ? (
               <ShieldCheck className="h-4 w-4" />
             ) : (
               <ShieldAlert className="h-4 w-4" />
             )}
-            <span>
-              {settings.connectionStatus === 'connected'
-                ? 'LIVE GOOGLE SHEET'
-                : settings.connectionStatus === 'verified_cache'
-                ? 'VERIFIED SOURCE DATA'
-                : 'SYNC ERROR'}
+            <span className="uppercase">
+              {settings.connectionStatus === 'Connected'
+                ? `LIVE GOOGLE SHEET (${settings.authMethod || 'AUTH'})`
+                : settings.connectionStatus}
             </span>
             <span className="ml-1 text-[11px] opacity-80">
               ({settings.recordCount} records)

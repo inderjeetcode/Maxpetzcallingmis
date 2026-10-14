@@ -235,18 +235,29 @@ export interface FilterState {
   searchQuery: string;
 }
 
+export type SheetConnectionStatus =
+  | 'Connected'
+  | 'Connecting'
+  | 'Configuration Required'
+  | 'Permission Error'
+  | 'Connection Error'
+  | 'Offline / Cached Data';
+
 export interface DataSourceSettings {
   spreadsheetId: string;
   tabName: string;
   apiKey?: string;
   appsScriptUrl?: string;
+  serviceAccountConfigured?: boolean;
+  authMethod?: 'Service Account' | 'API Key' | 'Apps Script' | 'Public Sheet' | 'None';
   callbackMatchingWindowHours: number;
   autoRefreshIntervalMinutes: number;
   managementAnswerRateTarget: number;
   timezone: string;
   lastSyncTime: string | null;
+  lastSuccessfulLiveSyncTime: string | null;
   recordCount: number;
-  connectionStatus: 'connected' | 'error' | 'syncing' | 'verified_cache';
+  connectionStatus: SheetConnectionStatus;
   errorMessage?: string;
   columnsDetected: string[];
   missingRequiredColumns: string[];

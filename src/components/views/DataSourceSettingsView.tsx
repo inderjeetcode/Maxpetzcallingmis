@@ -50,6 +50,10 @@ export const DataSourceSettingsView: React.FC<DataSourceSettingsViewProps> = ({
   const [matchingWindow, setMatchingWindow] = useState(settings.callbackMatchingWindowHours);
   const [refreshInterval, setRefreshInterval] = useState(settings.autoRefreshIntervalMinutes);
   const [targetAnswerRate, setTargetAnswerRate] = useState(settings.managementAnswerRateTarget);
+  const [apiKey, setApiKey] = useState(settings.apiKey || '');
+  const [appsScriptUrl, setAppsScriptUrl] = useState(settings.appsScriptUrl || '');
+  const [serviceAccountJson, setServiceAccountJson] = useState('');
+  const [serviceAccountSaved, setServiceAccountSaved] = useState(false);
   const [manualCsv, setManualCsv] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -62,6 +66,8 @@ export const DataSourceSettingsView: React.FC<DataSourceSettingsViewProps> = ({
       await onSaveSettings({
         spreadsheetId,
         tabName,
+        apiKey,
+        appsScriptUrl,
         callbackMatchingWindowHours: matchingWindow,
         autoRefreshIntervalMinutes: refreshInterval,
         managementAnswerRateTarget: targetAnswerRate,
@@ -72,6 +78,28 @@ export const DataSourceSettingsView: React.FC<DataSourceSettingsViewProps> = ({
       console.error(err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveServiceAccount = async () => {
+    if (!serviceAccountJson.trim()) return;
+    try {
+      const res = await fetch('/api/sheets/service-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentialsJson: serviceAccountJson }),
+      });
+      if (res.ok) {
+        setServiceAccountSaved(true);
+        setServiceAccountJson('');
+        setTimeout(() => setServiceAccountSaved(false), 4000);
+        onRefreshData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to parse service account JSON');
+      }
+    } catch (err: any) {
+      alert('Error saving service account: ' + err.message);
     }
   };
 
@@ -246,6 +274,38 @@ export const DataSourceSettingsView: React.FC<DataSourceSettingsViewProps> = ({
               All calendar metrics calculate using India Standard Time
             </span>
           </div>
+
+          <div>
+            <label className="block text-black uppercase mb-1">
+              Google Sheets API Key (Optional):
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full border-2 border-black p-2 font-mono text-xs focus:outline-none focus:bg-yellow-50"
+            />
+            <span className="text-[10px] text-gray-500 font-semibold block mt-1">
+              Required if sheet is accessed via Google Cloud API Key
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-black uppercase mb-1">
+              Google Apps Script Web App URL (Optional):
+            </label>
+            <input
+              type="text"
+              value={appsScriptUrl}
+              onChange={(e) => setAppsScriptUrl(e.target.value)}
+              placeholder="https://script.google.com/macros/s/.../exec"
+              className="w-full border-2 border-black p-2 font-mono text-xs focus:outline-none focus:bg-yellow-50"
+            />
+            <span className="text-[10px] text-gray-500 font-semibold block mt-1">
+              Secure alternative for corporate restricted spreadsheets
+            </span>
+          </div>
         </div>
 
         <div className="mt-5 flex items-center justify-between border-t border-gray-200 pt-4">
@@ -265,6 +325,55 @@ export const DataSourceSettingsView: React.FC<DataSourceSettingsViewProps> = ({
           </div>
         </div>
       </form>
+
+      {/* Google Service Account Credentials Box */}
+      <div className="border-2 border-black bg-white p-5 shadow-[4px_4px_0px_#000]">
+        <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-black" />
+            <h3 className="text-sm font-black uppercase text-black">
+              Google Cloud Service Account (Most Secure Method)
+            </h3>
+          </div>
+          <span
+            className={`border border-black px-2 py-0.5 text-[10px] font-black uppercase ${
+              settings.serviceAccountConfigured
+                ? 'bg-[#00D26A] text-black'
+                : 'bg-amber-100 text-amber-900'
+            }`}
+          >
+            {settings.serviceAccountConfigured ? 'CREDENTIALS CONFIGURED' : 'NOT CONFIGURED'}
+          </span>
+        </div>
+
+        <p className="text-xs font-semibold text-gray-700 mb-3">
+          Paste your Google Service Account key JSON here. The server signs OAuth2 tokens server-side and queries the official Google Sheets API v4 without exposing credentials to the client.
+        </p>
+
+        <textarea
+          rows={3}
+          value={serviceAccountJson}
+          onChange={(e) => setServiceAccountJson(e.target.value)}
+          placeholder='{"type": "service_account", "project_id": "...", "private_key": "...", "client_email": "..."}'
+          className="w-full border-2 border-black p-2 font-mono text-xs focus:outline-none focus:bg-yellow-50"
+        />
+
+        <div className="mt-3 flex items-center justify-between">
+          {serviceAccountSaved && (
+            <span className="font-mono text-xs font-black text-emerald-700">
+              ✓ Service Account configured successfully!
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleSaveServiceAccount}
+            disabled={!serviceAccountJson.trim()}
+            className="ml-auto border-2 border-black bg-[#FFE600] px-4 py-1.5 text-xs font-black uppercase text-black shadow-[2px_2px_0px_#000] hover:bg-yellow-300 disabled:opacity-50"
+          >
+            Save Service Account Key
+          </button>
+        </div>
+      </div>
 
       {/* Section 12: Data Quality & Column Diagnostics */}
       <div className="border-2 border-black bg-white p-5 shadow-[4px_4px_0px_#000]">

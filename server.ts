@@ -1,7 +1,7 @@
 /**
  * Max PetZ Hospitals — Call Analytics Dashboard
- * Full-stack Express Server with Google Sheets Integration,
- * Callback Tracking Persistence, and Vite Middleware Integration.
+ * Full-stack Express Server with Authenticated Google Sheets API Integration,
+ * Callback Tracking Persistence, and ZIP Export Endpoint.
  */
 
 import express from 'express';
@@ -10,7 +10,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { RAW_MAIN_DATA_CSV } from './src/data/rawSpreadsheetData';
 import { parseSpreadsheetData } from './src/services/dataParser';
-import { CallbackAuditLog, CallbackStoreRecord, DataSourceSettings } from './src/types/callAnalytics';
+import { fetchLiveGoogleSheet, ServiceAccountCredentials } from './src/services/googleSheetsService';
+import {
+  CallbackAuditLog,
+  CallbackStoreRecord,
+  DataSourceSettings,
+  SheetConnectionStatus,
+} from './src/types/callAnalytics';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,8 +24,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS & Security headers
 app.use((req, res, next) => {
@@ -34,26 +40,39 @@ app.use((req, res, next) => {
 
 // Storage Directory
 const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const DOWNLOADS_DIR = path.join(PUBLIC_DIR, 'downloads');
+
+[DATA_DIR, PUBLIC_DIR, DOWNLOADS_DIR].forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// Serve public directory
+app.use(express.static(PUBLIC_DIR));
 
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const CALLBACKS_FILE = path.join(DATA_DIR, 'callback_store.json');
 const AUDIT_LOGS_FILE = path.join(DATA_DIR, 'audit_logs.json');
 const CSV_CACHE_FILE = path.join(DATA_DIR, 'cached_spreadsheet.csv');
+const SERVICE_ACCOUNT_FILE = path.join(DATA_DIR, 'service_account.json');
 
 // Default Settings
 const DEFAULT_SETTINGS: DataSourceSettings = {
-  spreadsheetId: '170_JWT44cFX0QIvJ62KeLqe9io3hTkuNYJosVs2oCBA',
-  tabName: 'Main data',
+  spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || '170_JWT44cFX0QIvJ62KeLqe9io3hTkuNYJosVs2oCBA',
+  tabName: process.env.GOOGLE_SHEET_TAB || 'Main data',
+  apiKey: process.env.GOOGLE_SHEETS_API_KEY || '',
+  appsScriptUrl: process.env.GOOGLE_APPS_SCRIPT_URL || '',
   callbackMatchingWindowHours: 24,
   autoRefreshIntervalMinutes: 5,
   managementAnswerRateTarget: 85,
   timezone: 'Asia/Kolkata',
   lastSyncTime: null,
+  lastSuccessfulLiveSyncTime: null,
   recordCount: 0,
-  connectionStatus: 'verified_cache',
+  connectionStatus: 'Offline / Cached Data',
+  authMethod: 'None',
   columnsDetected: [],
   missingRequiredColumns: [],
 };
@@ -86,62 +105,33 @@ let cachedCsvData: string = fs.existsSync(CSV_CACHE_FILE)
   ? fs.readFileSync(CSV_CACHE_FILE, 'utf-8')
   : RAW_MAIN_DATA_CSV;
 
-/**
- * Attempt to fetch live Google Sheet data via public export / GViz endpoint
- */
-async function fetchGoogleSheetCsv(spreadsheetId: string, tabName: string): Promise<{ csv: string; source: string }> {
-  const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(
-    tabName
-  )}`;
-  const exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(
-    tabName
-  )}`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-  try {
-    const res = await fetch(gvizUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (res.ok) {
-      const text = await res.text();
-      if (text.includes('UID') && text.includes('Event')) {
-        return { csv: text, source: 'google_sheets_gviz' };
-      }
+// Check for Service Account in env or file
+function getServiceAccount(): ServiceAccountCredentials | null {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    try {
+      return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    } catch (e) {
+      console.error('Invalid GOOGLE_SERVICE_ACCOUNT_JSON env var');
     }
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.log('GViz fetch failed or timed out, trying export endpoint...');
   }
-
-  // Second attempt: export endpoint
-  const controller2 = new AbortController();
-  const timeoutId2 = setTimeout(() => controller2.abort(), 8000);
-  try {
-    const res = await fetch(exportUrl, { signal: controller2.signal });
-    clearTimeout(timeoutId2);
-    if (res.ok) {
-      const text = await res.text();
-      if (text.includes('UID') && text.includes('Event')) {
-        return { csv: text, source: 'google_sheets_export' };
-      }
+  if (fs.existsSync(SERVICE_ACCOUNT_FILE)) {
+    try {
+      return JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_FILE, 'utf-8'));
+    } catch (e) {
+      console.error('Invalid service_account.json file');
     }
-  } catch (err) {
-    clearTimeout(timeoutId2);
-    console.log('Export endpoint failed or timed out:', err);
   }
-
-  // Graceful fallback to verified cache dataset
-  return { csv: cachedCsvData || RAW_MAIN_DATA_CSV, source: 'verified_cache' };
+  return null;
 }
 
-// Initial parse of cached data to set record counts
+// Initial parse of cached data
 (() => {
   const parsed = parseSpreadsheetData(cachedCsvData);
   currentSettings.recordCount = parsed.records.length;
   currentSettings.columnsDetected = parsed.headers;
   currentSettings.missingRequiredColumns = parsed.missingRequired;
   currentSettings.lastSyncTime = currentSettings.lastSyncTime || new Date().toISOString();
+  currentSettings.serviceAccountConfigured = Boolean(getServiceAccount());
 })();
 
 // ==================== API ENDPOINTS ====================
@@ -153,12 +143,13 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     recordCount: currentSettings.recordCount,
     connectionStatus: currentSettings.connectionStatus,
+    lastSuccessfulLiveSyncTime: currentSettings.lastSuccessfulLiveSyncTime,
   });
 });
 
 /**
  * GET /api/sheets/data
- * Returns the current call dataset, quality summary, and sync status
+ * Returns the current call dataset and accurate live connection diagnostics
  */
 app.get('/api/sheets/data', (req, res) => {
   const parsed = parseSpreadsheetData(cachedCsvData);
@@ -166,6 +157,7 @@ app.get('/api/sheets/data', (req, res) => {
   currentSettings.recordCount = parsed.records.length;
   currentSettings.columnsDetected = parsed.headers;
   currentSettings.missingRequiredColumns = parsed.missingRequired;
+  currentSettings.serviceAccountConfigured = Boolean(getServiceAccount());
 
   res.json({
     success: true,
@@ -180,53 +172,87 @@ app.get('/api/sheets/data', (req, res) => {
 
 /**
  * POST /api/sheets/sync
- * Manually or automatically pulls fresh records from Google Sheets
+ * Performs an authenticated live sync against Google Sheets.
+ * Accurately updates status to 'Connected', 'Permission Error', or 'Connection Error'.
+ * Preserves the previous dataset if the live fetch fails without claiming cached data is live.
  */
 app.post('/api/sheets/sync', async (req, res) => {
+  const serviceAccount = getServiceAccount();
+  currentSettings.connectionStatus = 'Connecting';
+
   try {
-    const { spreadsheetId, tabName } = currentSettings;
-    const startTime = Date.now();
-    const { csv, source } = await fetchGoogleSheetCsv(spreadsheetId, tabName);
-    const durationMs = Date.now() - startTime;
+    const fetchResult = await fetchLiveGoogleSheet(currentSettings.spreadsheetId, currentSettings.tabName, {
+      serviceAccount,
+      apiKey: currentSettings.apiKey,
+      appsScriptUrl: currentSettings.appsScriptUrl,
+    });
 
-    const parsed = parseSpreadsheetData(csv);
+    if (fetchResult.status === 'Connected' && fetchResult.csv) {
+      const parsed = parseSpreadsheetData(fetchResult.csv);
 
-    if (parsed.records.length > 0) {
-      cachedCsvData = csv;
-      fs.writeFileSync(CSV_CACHE_FILE, csv, 'utf-8');
+      if (parsed.records.length > 0) {
+        cachedCsvData = fetchResult.csv;
+        fs.writeFileSync(CSV_CACHE_FILE, fetchResult.csv, 'utf-8');
 
-      currentSettings.lastSyncTime = new Date().toISOString();
-      currentSettings.recordCount = parsed.records.length;
-      currentSettings.columnsDetected = parsed.headers;
-      currentSettings.missingRequiredColumns = parsed.missingRequired;
-      currentSettings.connectionStatus = source === 'verified_cache' ? 'verified_cache' : 'connected';
-      currentSettings.errorMessage = undefined;
+        const nowIso = new Date().toISOString();
+        currentSettings.lastSyncTime = nowIso;
+        currentSettings.lastSuccessfulLiveSyncTime = nowIso;
+        currentSettings.recordCount = parsed.records.length;
+        currentSettings.columnsDetected = parsed.headers;
+        currentSettings.missingRequiredColumns = parsed.missingRequired;
+        currentSettings.connectionStatus = 'Connected';
+        currentSettings.authMethod = fetchResult.authMethod;
+        currentSettings.errorMessage = undefined;
 
-      writeJsonFile(SETTINGS_FILE, currentSettings);
+        writeJsonFile(SETTINGS_FILE, currentSettings);
 
-      return res.json({
-        success: true,
-        source,
-        durationMs,
-        recordsCount: parsed.records.length,
-        records: parsed.records,
-        summary: parsed.summary,
-        settings: currentSettings,
-      });
-    } else {
-      currentSettings.errorMessage = 'Google Sheet returned 0 valid records.';
-      return res.status(400).json({
-        success: false,
-        error: currentSettings.errorMessage,
-        settings: currentSettings,
-      });
+        return res.json({
+          success: true,
+          liveSync: true,
+          authMethod: fetchResult.authMethod,
+          latencyMs: fetchResult.latencyMs,
+          recordsCount: parsed.records.length,
+          records: parsed.records,
+          summary: parsed.summary,
+          settings: currentSettings,
+        });
+      }
     }
-  } catch (err: any) {
-    currentSettings.connectionStatus = 'error';
-    currentSettings.errorMessage = err.message || 'Sync failed';
-    res.status(500).json({
+
+    // Live sync failed or permission denied: preserve cached data and accurately report error
+    currentSettings.connectionStatus = fetchResult.status;
+    currentSettings.authMethod = fetchResult.authMethod;
+    currentSettings.errorMessage = fetchResult.errorMessage || 'Live sync failed to fetch valid records.';
+    currentSettings.lastSyncTime = new Date().toISOString(); // attempt time
+
+    writeJsonFile(SETTINGS_FILE, currentSettings);
+
+    const parsedCache = parseSpreadsheetData(cachedCsvData);
+
+    return res.status(200).json({
       success: false,
+      liveSync: false,
+      status: fetchResult.status,
       error: currentSettings.errorMessage,
+      latencyMs: fetchResult.latencyMs,
+      recordsCount: parsedCache.records.length,
+      records: parsedCache.records,
+      summary: parsedCache.summary,
+      settings: currentSettings,
+    });
+  } catch (err: any) {
+    currentSettings.connectionStatus = 'Connection Error';
+    currentSettings.errorMessage = err.message || 'Fatal error during Google Sheets synchronization';
+    writeJsonFile(SETTINGS_FILE, currentSettings);
+
+    const parsedCache = parseSpreadsheetData(cachedCsvData);
+    return res.status(200).json({
+      success: false,
+      liveSync: false,
+      status: 'Connection Error',
+      error: currentSettings.errorMessage,
+      records: parsedCache.records,
+      summary: parsedCache.summary,
       settings: currentSettings,
     });
   }
@@ -234,56 +260,69 @@ app.post('/api/sheets/sync', async (req, res) => {
 
 /**
  * POST /api/sheets/test-connection
- * Tests Google Sheets reachability without modifying data
+ * Tests Google Sheets reachability with configured authorization.
+ * Accurately reports whether live connection succeeded or why it is blocked.
  */
 app.post('/api/sheets/test-connection', async (req, res) => {
   const spreadsheetId = req.body.spreadsheetId || currentSettings.spreadsheetId;
   const tabName = req.body.tabName || currentSettings.tabName;
+  const apiKey = req.body.apiKey !== undefined ? req.body.apiKey : currentSettings.apiKey;
+  const appsScriptUrl = req.body.appsScriptUrl !== undefined ? req.body.appsScriptUrl : currentSettings.appsScriptUrl;
 
-  const testUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(
-    tabName
-  )}`;
+  const serviceAccount = getServiceAccount();
 
-  const startTime = Date.now();
+  const fetchResult = await fetchLiveGoogleSheet(spreadsheetId, tabName, {
+    serviceAccount,
+    apiKey,
+    appsScriptUrl,
+  });
+
+  const connected = fetchResult.status === 'Connected';
+
+  res.json({
+    connected,
+    status: fetchResult.status,
+    authMethod: fetchResult.authMethod,
+    latencyMs: fetchResult.latencyMs,
+    message: connected
+      ? `Live Google Sheet verified via ${fetchResult.authMethod} (${fetchResult.latencyMs}ms)`
+      : fetchResult.errorMessage || 'Could not establish authenticated connection to Google Sheets.',
+  });
+});
+
+/**
+ * POST /api/sheets/service-account
+ * Saves service account credentials securely on server
+ */
+app.post('/api/sheets/service-account', (req, res) => {
+  const { credentialsJson } = req.body;
+  if (!credentialsJson) {
+    return res.status(400).json({ success: false, error: 'No credentials JSON provided' });
+  }
+
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-    const response = await fetch(testUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    const latencyMs = Date.now() - startTime;
-
-    if (response.ok) {
-      const text = await response.text();
-      const hasHeaders = text.includes('UID') && text.includes('Event');
-      return res.json({
-        connected: true,
-        latencyMs,
-        statusCode: response.status,
-        headersDetected: hasHeaders,
-        message: hasHeaders
-          ? 'Successfully connected to Google Sheet Main data tab!'
-          : 'Connected to spreadsheet, but could not detect expected headers.',
-      });
-    } else {
-      return res.json({
-        connected: false,
-        latencyMs,
-        statusCode: response.status,
-        message: `Google Sheets responded with HTTP status ${response.status}. Verify sharing permissions or spreadsheet ID.`,
-      });
+    const creds = typeof credentialsJson === 'string' ? JSON.parse(credentialsJson) : credentialsJson;
+    if (!creds.client_email || !creds.private_key) {
+      return res.status(400).json({ success: false, error: 'JSON missing client_email or private_key' });
     }
-  } catch (err: any) {
-    return res.json({
-      connected: false,
-      latencyMs: Date.now() - startTime,
-      message: err.name === 'AbortError' ? 'Connection timed out after 6 seconds.' : err.message,
+
+    fs.writeFileSync(SERVICE_ACCOUNT_FILE, JSON.stringify(creds, null, 2), 'utf-8');
+    currentSettings.serviceAccountConfigured = true;
+    writeJsonFile(SETTINGS_FILE, currentSettings);
+
+    res.json({
+      success: true,
+      clientEmail: creds.client_email,
+      message: `Service account credentials configured for ${creds.client_email}. Share spreadsheet with Viewer access.`,
     });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: 'Invalid JSON: ' + err.message });
   }
 });
 
 /**
  * POST /api/sheets/upload-csv
- * Allows uploading or pasting updated CSV data directly
+ * Manual CSV upload / backup dataset override
  */
 app.post('/api/sheets/upload-csv', (req, res) => {
   const { csvText } = req.body;
@@ -293,7 +332,7 @@ app.post('/api/sheets/upload-csv', (req, res) => {
 
   const parsed = parseSpreadsheetData(csvText);
   if (parsed.records.length === 0) {
-    return res.status(400).json({ success: false, error: 'CSV could not be parsed or contains no valid rows' });
+    return res.status(400).json({ success: false, error: 'CSV contains no valid records' });
   }
 
   cachedCsvData = csvText;
@@ -303,7 +342,7 @@ app.post('/api/sheets/upload-csv', (req, res) => {
   currentSettings.recordCount = parsed.records.length;
   currentSettings.columnsDetected = parsed.headers;
   currentSettings.missingRequiredColumns = parsed.missingRequired;
-  currentSettings.connectionStatus = 'connected';
+  currentSettings.connectionStatus = 'Offline / Cached Data';
   currentSettings.errorMessage = undefined;
 
   writeJsonFile(SETTINGS_FILE, currentSettings);
@@ -319,7 +358,6 @@ app.post('/api/sheets/upload-csv', (req, res) => {
 
 /**
  * GET /api/callbacks
- * Returns stored manual confirmations and audit logs
  */
 app.get('/api/callbacks', (req, res) => {
   res.json({
@@ -331,7 +369,6 @@ app.get('/api/callbacks', (req, res) => {
 
 /**
  * POST /api/callbacks/confirm
- * Saves manual confirmation, marks outcome, and records audit trail
  */
 app.post('/api/callbacks/confirm', (req, res) => {
   const { missedCallUid, status, verifiedBy, notes } = req.body;
@@ -354,7 +391,6 @@ app.post('/api/callbacks/confirm', (req, res) => {
   callbackStore[missedCallUid] = record;
   writeJsonFile(CALLBACKS_FILE, callbackStore);
 
-  // Add audit log entry
   const auditEntry: CallbackAuditLog = {
     id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     missedCallUid,
@@ -366,7 +402,7 @@ app.post('/api/callbacks/confirm', (req, res) => {
   };
 
   auditLogs.unshift(auditEntry);
-  if (auditLogs.length > 500) auditLogs.pop(); // keep last 500
+  if (auditLogs.length > 500) auditLogs.pop();
   writeJsonFile(AUDIT_LOGS_FILE, auditLogs);
 
   res.json({
@@ -380,6 +416,7 @@ app.post('/api/callbacks/confirm', (req, res) => {
  * GET & POST /api/settings
  */
 app.get('/api/settings', (req, res) => {
+  currentSettings.serviceAccountConfigured = Boolean(getServiceAccount());
   res.json({ success: true, settings: currentSettings });
 });
 

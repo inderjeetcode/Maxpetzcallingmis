@@ -565,6 +565,37 @@ cg2.1791914898.1573189,Outgoing,Call,Connected,9.19E+11,,IN,DL,72,########,Asif 
 cg2.1791916030.1573302,Outgoing,Call,Connected,9.20E+11,,IN,HP,82,########,EOK Emergency ext. 24 (received),,IVR,No,,"for Dr Reva appt [Noted ext 15], [Date 2026-10-13 23:58:42]",1,2,0,0
 63.1791864292.12025450,Incoming,Call,Connected,9.20E+11,,IN,UW,71,########,Harsh Sharma ext. 15 (received),support,IVR,No,,"For Dr. Anikshit [Noted ext 15], [Date 2026-10-13 09:36:04]",1,2,0,0
 cg2.1791912695.1572997,Outgoing,Call,Connected,9.20E+11,,IN,DL,50,########,Asif ext. 23 (received),,IVR,No,,"FOR EMERGANCY [Noted ext 23], [Date 2026-10-13 23:03:37]",1,1,0,0
-cg2.1791864663.1546196,Outgoing,Call,Connected,9.20E+11,Dr.anil Sood,IN,DL,146,########,IPD Mobile ext. 26 (received),,IVR,No,,,1,3,0,0
-32.1791878078.4872177,Incoming,Call,Connected,9.19E+11,,IN,DL,325,########,Ikra Siddiqui ext. 13 (received),support,IVR,No,,"For Dr Sunaina appt. scheduled [Noted ext 13], [Date 2026-10-13 13:30:10]",1,6,0,0
+cg2.1791780547.1519007,Incoming,Call,Connected,9.20E+11,,IN,DL,233,########,Harsh Sharma ext. 15 (transferred) | (transfer to) IPD Mobile ext. 26 | IPD Mobile ext. 26 (missed),support,IVR,No,,,1,4,0,0
+18.1791781651.22497629,Incoming,Call,Missed,9.20E+11,,IN,DL,32,########,,,IVR,No,,"Busy call [Noted ext 17], [Date 2026-10-12 10:39:13]",1,1,0,0
+32.1791782798.4722175,Incoming,Call,Connected,9.20E+11,,IN,UE,63,########,Shivani Jaiswal ext. 17 (received),support,IVR,No,,"For Appt [Noted ext 17], [Date 2026-10-12 10:57:49]",1,2,0,0
+cg2.1791780585.1519057,Incoming,Call,Connected,9.20E+11,,IN,DL,124,########,Shivani Jaiswal ext. 17 (received),support,IVR,No,,"Missing Files [Noted ext 17], [Date 2026-10-12 10:22:02]",1,3,0,0
+cg2.1791781188.1519426,Outgoing,Call,Missed,9.20E+11,,IN,DL,15,########,Shivani Jaiswal ext. 17 (missed),,IVR,No,,"Busy call [Noted ext 17], [Date 2026-10-12 10:30:14]",0,0,0,0
+1.1791781398.22235005,Incoming,Call,Connected,9.20E+11,,IN,DL,91,########,Harsh Sharma ext. 15 (received),support,IVR,No,,"For Dr. Ankita app [Noted ext 15], [Date 2026-10-12 10:35:20]",1,2,0,0
+3.1791781241.4863239,Incoming,Call,Missed,9.20E+11,,IN,DL,13,########,,Online Consultant,IVR,No,,"For Dr. Ankita app [Noted ext 15], [Date 2026-10-12 10:35:16]",1,1,0,0
+18.1791782880.22501801,Incoming,Call,Missed,9.19E+11,,IN,DL,26,########,Harsh Sharma ext. 15 (missed),Online Consultant,IVR,No,,"For Dr. Dr. Bhanu [Noted ext 15], [Date 2026-10-12 11:01:27]",1,1,0,0
+32.1791783560.4724912,Incoming,Call,Connected,9.19E+11,,IN,DL,142,########,Shivani Jaiswal ext. 17 (received),Online Consultant,IVR,No,,"For Dr Rupali Appt [Noted ext 17], [Date 2026-10-12 11:11:44]",1,3,0,0
+32.1791781310.4717546,Incoming,Call,Missed,9.20E+11,,IN,DL,16,########,,support,IVR,No,,"Call disconnected by client [Noted ext 17], [Date 2026-10-12 10:36:07]",1,1,0,0
+cg2.1791780867.1519243,Outgoing,Call,Connected,9.18E+11,,IN,DL,166,########,Shivani Jaiswal ext. 17 (received),,IVR,No,,"For Dr Vartika Appt [Noted ext 17], [Date 2026-10-12 10:27:34]",1,3,0,0
+cg2.1791781147.1519405,Outgoing,Call,Connected,9.20E+11,,IN,DL,79,########,Patient Care Coordinator ext. 11 (received),,IVR,No,,,1,2,0,0
+18.1791781691.22497762,Incoming,Call,Missed,9.20E+11,,IN,DL,17,########,,support,IVR,No,,"Busy call [Noted ext 17], [Date 2026-10-12 10:39:07]",1,1,0,0
+130.1791783317.8889255,Incoming,Call,Connected,9.20E+11,,IN,DL,25,########,Shivani Jaiswal ext. 17 (received),support,IVR,No,,,1,1,0,0
+130.1791783599.8890296,Incoming,Call,Connected,9.19E+11,,IN,UE,80,########,Harsh Sharma ext. 15 (received),Online Consultant,IVR,No,,"For Dr. Sunaina [Noted ext 15], [Date 2026-10-12 11:11:34]",1,2,0,0
+6.1791783775.22256497,Incoming,Call,Connected,9.18E+11,,IN,DL,191,########,Shivani Jaiswal ext. 17 (received),support,IVR,No,,"For Dr Ankita Appt [Noted ext 17], [Date 2026-10-12 11:16:30]",1,4,0,0
+63.1791785021.11925329,Incoming,Call,Missed,9.19E+11,,IN,DL,15,########,,support,IVR,No,,"For Dr. Sunaina [Noted ext 17], [Date 2026-10-12 11:45:33]",1,1,0,0
+18.1791784409.22507328,Incoming,Call,Connected,9.18E+11,,IN,DL,106,########,Harsh Sharma ext. 15 (received),support,IVR,No,,"For IPD GASPER (61118) [Noted ext 15], [Date 2026-10-12 11:25:17]",1,2,0,0
+cg2.1791785159.1522605,Incoming,Call,Missed,9.20E+11,,IN,DL,4,########,,Extension,IVR,No,,"Stuck in traffic [Noted ext 17], [Date 2026-10-12 11:42:13]",0,1,0,0
+cg2.1791784193.1521778,Outgoing,Call,Missed,9.20E+11,,IN,MU,42,########,INDERJEET ext. 14 (missed),,IVR,No,,"due call [Noted ext 14], [Date 2026-10-12 11:20:37]",0,0,0,0
+63.1791785184.11925885,Incoming,Call,Missed,9.17E+11,,IN,UW,17,########,,support,IVR,No,,"For surgery [Noted ext 17], [Date 2026-10-12 11:38:59]",1,1,0,0
+1.1791783341.22241498,Incoming,Call,Missed,9.20E+11,,IN,DL,11,########,,support,IVR,No,,"For Reports [Noted ext 15], [Date 2026-10-12 11:13:11]",1,1,0,0
+cg2.1791785021.1522508,Outgoing,Call,Missed,9.20E+11,,IN,AS,12,########,EOK Emergency ext. 24 (missed),,IVR,No,,,0,0,0,0
+1.1791785101.22247809,Incoming,Call,Connected,9.17E+11,,IN,UW,58,########,IPD Mobile ext. 26 (received),Admit Patient Assistance,IVR,No,,,1,1,0,0
+3.1791785327.4877074,Incoming,Call,Missed,9.20E+11,,IN,DL,19,########,,support,IVR,No,,"Stuck in traffic [Noted ext 17], [Date 2026-10-12 11:41:52]",1,1,0,0
+cg2.1791784784.1522290,Incoming,Call,Missed,9.20E+11,,IN,DL,18,########,,support,IVR,No,,"For app cancel [Noted ext 15], [Date 2026-10-12 11:53:48]",1,1,0,0
+15.1791787247.12011580,Incoming,Call,Connected,9.20E+11,,IN,DL,71,########,IPD Mobile ext. 26 (received),Admit Patient Assistance,IVR,No,,,1,2,0,0
+6.1791787966.22271976,Incoming,Call,Missed,9.20E+11,,IN,UE,17,########,,,IVR,No,,"Online consultation with Dr Ankita [Noted ext 15], [Date 2026-10-12 12:26:05]",1,1,0,0
+cg2.1791786626.1523796,Incoming,Call,Missed,9.18E+11,,IN,KA,9,########,,,IVR,No,,"cALL BY MISTAKE [Noted ext 23], [Date 2026-10-12 12:06:44]",1,1,0,0
+130.1791787628.8905306,Incoming,Call,Missed,9.16E+11,,IN,MP,19,########,,Online Consultant,IVR,No,,"FOR HERNIA SURGERY [Noted ext 23], [Date 2026-10-12 12:21:14]",1,1,0,0
+cg2.1791786578.1523737,Outgoing,Call,Connected,9.20E+11,,IN,AS,164,########,EOK Emergency ext. 24 (received),,IVR,No,,,1,3,0,0
+3.1791788176.4887710,Incoming,Call,Connected,9.19E+11,,IN,DL,147,########,Shivani Jaiswal ext. 17 (received),Online Consultant,IVR,No,,"Talk to Dr Vaishali [Noted ext 17], [Date 2026-10-12 12:29:31]",1,3,0,0
 `;
+

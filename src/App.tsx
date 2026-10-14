@@ -69,8 +69,9 @@ export default function App() {
     managementAnswerRateTarget: 85,
     timezone: 'Asia/Kolkata',
     lastSyncTime: new Date().toISOString(),
+    lastSuccessfulLiveSyncTime: null,
     recordCount: 0,
-    connectionStatus: 'verified_cache',
+    connectionStatus: 'Offline / Cached Data',
     columnsDetected: [],
     missingRequiredColumns: [],
   });
